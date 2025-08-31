@@ -1,0 +1,466 @@
+```python
+import os
+import sys
+# DON'T CHANGE THIS !!!
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+
+from flask import Flask, send_from_directory
+from flask_cors import CORS
+from src.models.user import db
+from src.routes.user import user_bp
+from src.routes.reports import reports_bp
+from src.routes.ai_assistant import ai_bp
+
+app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
+app.config['SECRET_KEY'] = 'asdf#FGSgvasgf$5$WGT'
+
+# Enable CORS for all routes
+CORS(app)
+
+# Register blueprints
+app.register_blueprint(user_bp, url_prefix='/api')
+app.register_blueprint(reports_bp, url_prefix='/api')
+app.register_blueprint(ai_bp, url_prefix='/api')
+
+# Database configuration
+app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db')}"
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db.init_app(app)
+
+# Import all models to ensure they're created
+from src.models.report import Report, ReportSection, FinancialData
+
+with app.app_context():
+    db.create_all()
+
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve(path):
+    static_folder_path = app.static_folder
+    if static_folder_path is None:
+            return "Static folder not configured", 404
+
+    if path != "" and os.path.exists(os.path.join(static_folder_path, path)):
+        return send_from_directory(static_folder_path, path)
+    else:
+        index_path = os.path.join(static_folder_path, 'index.html')
+        if os.path.exists(index_path):
+            return send_from_directory(static_folder_path, 'index.html')
+        else:
+            return "index.html not found", 404
+
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)
+```
+
+## Reports API Routes (routes/reports.py)
+
+```python
+from flask import Blueprint, request, jsonify
+from src.models.user import db
+from src.models.report import Report, ReportSection, FinancialData
+from datetime import datetime, date
+import json
+
+reports_bp = Blueprint('reports', __name__)
+
+@reports_bp.route('/reports', methods=['GET'])
+def get_reports():
+    """Get all reports with optional filtering"""
+    try:
+        # Get query parameters
+        sector = request.args.get('sector')
+        country = request.args.get('country')
+        report_type = request.args.get('report_type')
+        search = request.args.get('search')
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 20))
+        
+        # Build query
+        query = Report.query
+        
+        if sector:
+            query = query.filter(Report.sector.ilike(f'%{sector}%'))
+        if country:
+            query = query.filter(Report.country.ilike(f'%{country}%'))
+        if report_type:
+            query = query.filter(Report.report_type.ilike(f'%{report_type}%'))
+        if search:
+            query = query.filter(
+                db.or_(
+                    Report.title.ilike(f'%{search}%'),
+                    Report.industry_name.ilike(f'%{search}%'),
+                    Report.executive_summary.ilike(f'%{search}%')
+                )
+            )
+        
+        # Paginate results
+        reports = query.paginate(
+            page=page, 
+            per_page=per_page, 
+            error_out=False
+        )
+        
+        return jsonify({
+            'reports': [report.to_dict() for report in reports.items],
+            'total': reports.total,
+            'pages': reports.pages,
+            'current_page': page,
+            'per_page': per_page
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@reports_bp.route('/reports/<int:report_id>', methods=['GET'])
+def get_report(report_id):
+    """Get a specific report with all sections"""
+    try:
+        report = Report.query.get_or_404(report_id)
+        
+        # Get report sections
+        sections = ReportSection.query.filter_by(report_id=report_id).order_by(ReportSection.section_order).all()
+        
+        # Get financial data
+        financial_data = FinancialData.query.filter_by(report_id=report_id).all()
+        
+        report_dict = report.to_dict()
+        report_dict['sections'] = [section.to_dict() for section in sections]
+        report_dict['financial_data'] = [data.to_dict() for data in financial_data]
+        
+        return jsonify(report_dict)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@reports_bp.route('/reports', methods=['POST'])
+def create_report():
+    """Create a new report"""
+    try:
+        data = request.get_json()
+        
+        # Create new report
+        report = Report(
+            title=data.get('title'),
+            industry_code=data.get('industry_code'),
+            industry_name=data.get('industry_name'),
+            sector=data.get('sector'),
+            country=data.get('country'),
+            report_type=data.get('report_type'),
+            revenue=data.get('revenue'),
+            revenue_growth=data.get('revenue_growth'),
+            profit_margin=data.get('profit_margin'),
+            employees=data.get('employees'),
+            businesses=data.get('businesses'),
+            executive_summary=data.get('executive_summary'),
+            market_size=data.get('market_size'),
+            market_trends=data.get('market_trends'),
+            competitive_landscape=data.get('competitive_landscape'),
+            key_players=data.get('key_players'),
+            author=data.get('author', 'Manus AI'),
+            data_period_start=datetime.strptime(data['data_period_start'], '%Y-%m-%d').date() if data.get('data_period_start') else None,
+            data_period_end=datetime.strptime(data['data_period_end'], '%Y-%m-%d').date() if data.get('data_period_end') else None
+        )
+        
+        db.session.add(report)
+        db.session.flush()  # Get the report ID
+        
+        # Add sections if provided
+        if 'sections' in data:
+            for section_data in data['sections']:
+                section = ReportSection(
+                    report_id=report.id,
+                    section_name=section_data['section_name'],
+                    section_order=section_data['section_order'],
+                    content=section_data['content']
+                )
+                db.session.add(section)
+        
+        # Add financial data if provided
+        if 'financial_data' in data:
+            for financial_item in data['financial_data']:
+                financial_data = FinancialData(
+                    report_id=report.id,
+                    year=financial_item['year'],
+                    metric_name=financial_item['metric_name'],
+                    metric_value=financial_item['metric_value'],
+                    metric_unit=financial_item.get('metric_unit', 'USD')
+                )
+                db.session.add(financial_data)
+        
+        db.session.commit()
+        
+        return jsonify(report.to_dict()), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@reports_bp.route('/reports/search', methods=['GET'])
+def search_reports():
+    """Advanced search for reports"""
+    try:
+        query_text = request.args.get('q', '')
+        filters = {
+            'sector': request.args.get('sector'),
+            'country': request.args.get('country'),
+            'report_type': request.args.get('report_type')
+        }
+        
+        # Build search query
+        query = Report.query
+        
+        if query_text:
+            query = query.filter(
+                db.or_(
+                    Report.title.ilike(f'%{query_text}%'),
+                    Report.industry_name.ilike(f'%{query_text}%'),
+                    Report.executive_summary.ilike(f'%{query_text}%'),
+                    Report.market_trends.ilike(f'%{query_text}%')
+                )
+            )
+        
+        # Apply filters
+        for key, value in filters.items():
+            if value:
+                query = query.filter(getattr(Report, key).ilike(f'%{value}%'))
+        
+        reports = query.limit(50).all()
+        
+        return jsonify({
+            'results': [report.to_dict() for report in reports],
+            'count': len(reports),
+            'query': query_text,
+            'filters': filters
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@reports_bp.route('/reports/sectors', methods=['GET'])
+def get_sectors():
+    """Get all available sectors"""
+    try:
+        sectors = db.session.query(Report.sector).distinct().all()
+        return jsonify([sector[0] for sector in sectors if sector[0]])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@reports_bp.route('/reports/countries', methods=['GET'])
+def get_countries():
+    """Get all available countries"""
+    try:
+        countries = db.session.query(Report.country).distinct().all()
+        return jsonify([country[0] for country in countries if country[0]])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@reports_bp.route('/reports/stats', methods=['GET'])
+def get_platform_stats():
+    """Get platform statistics"""
+    try:
+        total_reports = Report.query.count()
+        sectors_count = db.session.query(Report.sector).distinct().count()
+        countries_count = db.session.query(Report.country).distinct().count()
+        
+        # Recent reports
+        recent_reports = Report.query.order_by(Report.publication_date.desc()).limit(5).all()
+        
+        return jsonify({
+            'total_reports': total_reports,
+            'sectors_covered': sectors_count,
+            'countries_covered': countries_count,
+            'recent_reports': [report.to_dict() for report in recent_reports]
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+```
+
+## AI Assistant Routes (routes/ai_assistant.py)
+
+```python
+from flask import Blueprint, request, jsonify
+from src.models.report import Report, ReportSection
+import openai
+import os
+from datetime import datetime
+
+ai_bp = Blueprint('ai', __name__)
+
+# Initialize OpenAI client
+openai.api_key = os.getenv('OPENAI_API_KEY')
+
+@ai_bp.route('/ai/ask', methods=['POST'])
+def ask_ai():
+    """AI assistant endpoint similar to IBISWorld's Phil"""
+    try:
+        data = request.get_json()
+        question = data.get('question', '')
+        context = data.get('context', '')  # Optional industry/report context
+        
+        if not question:
+            return jsonify({'error': 'Question is required'}), 400
+        
+        # Get relevant context from database if industry is specified
+        industry_context = ""
+        if context:
+            # Search for relevant reports
+            reports = Report.query.filter(
+                Report.industry_name.ilike(f'%{context}%')
+            ).limit(3).all()
+            
+            if reports:
+                industry_context = "\\n\\nRelevant industry data:\\n"
+                for report in reports:
+                    industry_context += f"- {report.title}: {report.executive_summary[:200]}...\\n"
+        
+        # Prepare prompt for AI
+        system_prompt = """You are Phil, an AI economist and industry research assistant. You provide expert insights on industries, market trends, and business analysis. You have access to comprehensive industry data and can answer questions about:
+
+- Industry performance and outlook
+- Market size and growth trends
+- Competitive landscape analysis
+- Financial benchmarks and ratios
+- Economic indicators and their impact
+- Business strategy recommendations
+
+Provide clear, concise, and actionable insights. Use data-driven analysis when possible."""
+
+        user_prompt = f"Question: {question}{industry_context}"
+        
+        # Call OpenAI API
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            max_tokens=500,
+            temperature=0.7
+        )
+        
+        ai_response = response.choices[0].message.content
+        
+        return jsonify({
+            'question': question,
+            'answer': ai_response,
+            'context_used': bool(industry_context),
+            'timestamp': datetime.utcnow().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'AI service error: {str(e)}'}), 500
+
+@ai_bp.route('/ai/insights/<int:report_id>', methods=['GET'])
+def get_report_insights(report_id):
+    """Get AI-generated insights for a specific report"""
+    try:
+        report = Report.query.get_or_404(report_id)
+        
+        # Prepare report data for AI analysis
+        report_summary = f"""
+        Industry: {report.industry_name}
+        Sector: {report.sector}
+        Revenue: ${report.revenue:,.0f} billion
+        Growth: {report.revenue_growth}%
+        Employees: {report.employees:,}
+        Summary: {report.executive_summary}
+        """
+        
+        system_prompt = """You are an expert industry analyst. Analyze the provided industry report data and generate 3-5 key insights about:
+1. Market opportunities
+2. Key challenges
+3. Growth drivers
+4. Competitive dynamics
+5. Future outlook
+
+Keep insights concise and actionable."""
+        
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"Analyze this industry report: {report_summary}"}
+            ],
+            max_tokens=400,
+            temperature=0.7
+        )
+        
+        insights = response.choices[0].message.content
+        
+        return jsonify({
+            'report_id': report_id,
+            'report_title': report.title,
+            'insights': insights,
+            'generated_at': datetime.utcnow().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Insights generation error: {str(e)}'}), 500
+
+@ai_bp.route('/ai/compare', methods=['POST'])
+def compare_industries():
+    """Compare multiple industries using AI analysis"""
+    try:
+        data = request.get_json()
+        industry_ids = data.get('industry_ids', [])
+        
+        if len(industry_ids) < 2:
+            return jsonify({'error': 'At least 2 industries required for comparison'}), 400
+        
+        # Get reports for comparison
+        reports = Report.query.filter(Report.id.in_(industry_ids)).all()
+        
+        if len(reports) < 2:
+            return jsonify({'error': 'Could not find enough reports for comparison'}), 400
+        
+        # Prepare comparison data
+        comparison_data = ""
+        for report in reports:
+            comparison_data += f"""
+            Industry: {report.industry_name}
+            Sector: {report.sector}
+            Revenue: ${report.revenue:,.0f} billion
+            Growth: {report.revenue_growth}%
+            Employees: {report.employees:,}
+            ---
+            """
+        
+        system_prompt = """You are an industry comparison expert. Compare the provided industries and highlight:
+1. Key differences in performance
+2. Growth potential comparison
+3. Market size differences
+4. Competitive advantages
+5. Investment attractiveness
+
+Provide a structured comparison with clear recommendations."""
+        
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"Compare these industries: {comparison_data}"}
+            ],
+            max_tokens=600,
+            temperature=0.7
+        )
+        
+        comparison = response.choices[0].message.content
+        
+        return jsonify({
+            'industries_compared': [report.industry_name for report in reports],
+            'comparison_analysis': comparison,
+            'generated_at': datetime.utcnow().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Comparison error: {str(e)}'}), 500
+```
+
+## Database Models (models/report.py)
+
+```python
+from flask_sqlalchemy import SQ
+(Content truncated due to size limit. Use page ranges or line ranges to read remaining content)
