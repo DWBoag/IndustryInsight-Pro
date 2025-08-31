@@ -1,0 +1,365 @@
+``jsx
+import { useState, useEffect } from 'react'
+import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom'
+import { Search, BarChart3, Users, TrendingUp, BookOpen, MessageCircle, Menu, X } from 'lucide-react'
+import { Button } from '@/components/ui/button.jsx'
+import { Input } from '@/components/ui/input.jsx'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
+import { Badge } from '@/components/ui/badge.jsx'
+import ReportsPage from './components/ReportsPage.jsx'
+import './App.css'
+
+// Header Component
+function Header() {
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+
+  return (
+    <header className="bg-white shadow-sm border-b">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-16">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <Link to="/" className="text-2xl font-bold text-blue-600">IndustryInsight Pro</Link>
+            </div>
+            <nav className="hidden md:ml-8 md:flex md:space-x-8">
+              <Link to="/reports" className="text-gray-900 hover:text-blue-600 px-3 py-2 text-sm font-medium">Industry Reports</Link>
+              <a href="#" className="text-gray-900 hover:text-blue-600 px-3 py-2 text-sm font-medium">Market Research</a>
+              <a href="#" className="text-gray-900 hover:text-blue-600 px-3 py-2 text-sm font-medium">Economic Data</a>
+              <a href="#ai-assistant" className="text-gray-900 hover:text-blue-600 px-3 py-2 text-sm font-medium">AI Assistant</a>
+            </nav>
+          </div>
+          <div className="hidden md:flex items-center space-x-4">
+            <Button variant="outline">Sign In</Button>
+            <Button>Start Free Trial</Button>
+          </div>
+          <div className="md:hidden">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+            >
+              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </Button>
+          </div>
+        </div>
+      </div>
+      {isMenuOpen && (
+        <div className="md:hidden">
+          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-white border-t">
+            <Link to="/reports" className="block px-3 py-2 text-base font-medium text-gray-900 hover:text-blue-600">Industry Reports</Link>
+            <a href="#" className="block px-3 py-2 text-base font-medium text-gray-900 hover:text-blue-600">Market Research</a>
+            <a href="#" className="block px-3 py-2 text-base font-medium text-gray-900 hover:text-blue-600">Economic Data</a>
+            <a href="#ai-assistant" className="block px-3 py-2 text-base font-medium text-gray-900 hover:text-blue-600">AI Assistant</a>
+            <div className="px-3 py-2 space-y-2">
+              <Button variant="outline" className="w-full">Sign In</Button>
+              <Button className="w-full">Start Free Trial</Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </header>
+  )
+}
+
+// Hero Section Component
+function HeroSection() {
+  const [searchQuery, setSearchQuery] = useState('')
+  const navigate = useNavigate()
+
+  const handleSearch = () => {
+    if (searchQuery.trim()) {
+      navigate(`/reports?search=${encodeURIComponent(searchQuery)}`)
+    }
+  }
+
+  return (
+    <section className="bg-gradient-to-br from-blue-50 to-indigo-100 py-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center">
+          <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
+            Industry Intelligence at Your Fingertips
+          </h1>
+          <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
+            Access comprehensive industry reports, market analysis, and economic insights powered by AI. 
+            Make informed business decisions with trusted data from thousands of industries worldwide.
+          </p>
+          <div className="max-w-2xl mx-auto mb-8">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+              <Input
+                type="text"
+                placeholder="Search industries, companies, or market trends..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 pr-4 py-3 text-lg"
+                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+              />
+              <Button 
+                className="absolute right-2 top-1/2 transform -translate-y-1/2"
+                onClick={handleSearch}
+              >
+                Search
+              </Button>
+            </div>
+          </div>
+          <div className="flex flex-wrap justify-center gap-4 text-sm text-gray-600">
+            <span>Popular searches:</span>
+            <Badge variant="secondary" className="cursor-pointer hover:bg-blue-100" onClick={() => {setSearchQuery('Fast Food Restaurants'); handleSearch()}}>Fast Food Restaurants</Badge>
+            <Badge variant="secondary" className="cursor-pointer hover:bg-blue-100" onClick={() => {setSearchQuery('Software Publishers'); handleSearch()}}>Software Publishers</Badge>
+            <Badge variant="secondary" className="cursor-pointer hover:bg-blue-100" onClick={() => {setSearchQuery('Commercial Banking'); handleSearch()}}>Commercial Banking</Badge>
+            <Badge variant="secondary" className="cursor-pointer hover:bg-blue-100" onClick={() => {setSearchQuery('E-commerce'); handleSearch()}}>E-commerce</Badge>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// Features Section Component
+function FeaturesSection() {
+  const features = [
+    {
+      icon: <BarChart3 className="h-8 w-8 text-blue-600" />,
+      title: "Comprehensive Industry Reports",
+      description: "Access detailed reports covering 700+ industries with financial data, market trends, and competitive analysis."
+    },
+    {
+      icon: <TrendingUp className="h-8 w-8 text-green-600" />,
+      title: "Real-time Market Data",
+      description: "Get up-to-date market intelligence with live data feeds and automated report updates."
+    },
+    {
+      icon: <MessageCircle className="h-8 w-8 text-purple-600" />,
+      title: "AI-Powered Assistant",
+      description: "Ask questions and get instant insights from our AI economist trained on industry data."
+    },
+    {
+      icon: <Users className="h-8 w-8 text-orange-600" />,
+      title: "Expert Analysis",
+      description: "Benefit from insights by industry experts and economists with decades of experience."
+    }
+  ]
+
+  return (
+    <section className="py-20 bg-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-16">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            Everything You Need for Industry Research
+          </h2>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            Our platform provides comprehensive tools and data to help you understand markets, 
+            identify opportunities, and make strategic business decisions.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          {features.map((feature, index) => (
+            <Card key={index} className="text-center hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <div className="flex justify-center mb-4">
+                  {feature.icon}
+                </div>
+                <CardTitle className="text-xl">{feature.title}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CardDescription className="text-gray-600">
+                  {feature.description}
+                </CardDescription>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// Industry Reports Section Component
+function IndustryReportsSection() {
+  const [reports, setReports] = useState([])
+  const [loading, setLoading] = useState(true)
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    // Simulate API call to fetch reports
+    const fetchReports = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/reports')
+        if (response.ok) {
+          const data = await response.json()
+          setReports(data.reports?.slice(0, 3) || []) // Show only first 3 reports
+        } else {
+          // Fallback to mock data if backend is not available
+          const mockReports = [
+            {
+              id: 1,
+              title: "Fast Food Restaurants in the US",
+              industry_name: "Fast Food Restaurants",
+              sector: "Accommodation and Food Services",
+              revenue: 417.5,
+              revenue_growth: 3.9,
+              executive_summary: "While shifting consumer preferences and a crowded foodservice landscape, fast food restaurants have maintained a steady pace of growth. Over the five years to 2025, industry revenue has expanded at a CAGR of 3.9%, reaching $417.5 billion. The trend towards fast casual dining has bolstered the industry, helping fast food chains hold their ground amid fierce competition."
+            },
+            {
+              id: 2,
+              title: "Software Publishers in the US",
+              industry_name: "Software Publishers",
+              sector: "Information",
+              revenue: 425.8,
+              revenue_growth: 8.7,
+              executive_summary: "The Software Publishers industry has experienced robust growth driven by digital transformation, cloud computing adoption, and increased demand for enterprise software solutions. The industry has benefited from the shift to remote work and digital business models."
+            },
+            {
+              id: 3,
+              title: "Commercial Banking in the US",
+              industry_name: "Commercial Banking",
+              sector: "Finance and Insurance",
+              revenue: 785.2,
+              revenue_growth: 2.1,
+              executive_summary: "The Commercial Banking industry has shown resilience despite economic uncertainties. Interest rate changes and regulatory requirements continue to shape the competitive landscape."
+            }
+          ]
+          setReports(mockReports)
+        }
+      } catch (error) {
+        console.error('Error fetching reports:', error)
+        // Use mock data as fallback
+        const mockReports = [
+          {
+            id: 1,
+            title: "Fast Food Restaurants in the US",
+            industry_name: "Fast Food Restaurants",
+            sector: "Accommodation and Food Services",
+            revenue: 417.5,
+            revenue_growth: 3.9,
+            executive_summary: "While shifting consumer preferences and a crowded foodservice landscape, fast food restaurants have maintained a steady pace of growth. Over the five years to 2025, industry revenue has expanded at a CAGR of 3.9%, reaching $417.5 billion. The trend towards fast casual dining has bolstered the industry, helping fast food chains hold their ground amid fierce competition."
+          },
+          {
+            id: 2,
+            title: "Software Publishers in the US",
+            industry_name: "Software Publishers",
+            sector: "Information",
+            revenue: 425.8,
+            revenue_growth: 8.7,
+            executive_summary: "The Software Publishers industry has experienced robust growth driven by digital transformation, cloud computing adoption, and increased demand for enterprise software solutions. The industry has benefited from the shift to remote work and digital business models."
+          },
+          {
+            id: 3,
+            title: "Commercial Banking in the US",
+            industry_name: "Commercial Banking",
+            sector: "Finance and Insurance",
+            revenue: 785.2,
+            revenue_growth: 2.1,
+            executive_summary: "The Commercial Banking industry has shown resilience despite economic uncertainties. Interest rate changes and regulatory requirements continue to shape the competitive landscape."
+          }
+        ]
+        setReports(mockReports)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchReports()
+  }, [])
+
+  const formatCurrency = (value) => {
+    return `$${value.toFixed(1)}B`
+  }
+
+  return (
+    <section className="py-20 bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-16">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            Featured Industry Reports
+          </h2>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            Explore our most popular industry reports with detailed market analysis, 
+            financial data, and strategic insights.
+          </p>
+        </div>
+        
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[1, 2, 3].map((i) => (
+              <Card key={i} className="animate-pulse">
+                <CardHeader>
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="h-3 bg-gray-200 rounded"></div>
+                    <div className="h-3 bg-gray-200 rounded w-5/6"></div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {reports.map((report) => (
+              <Card key={report.id} className="hover:shadow-lg transition-shadow cursor-pointer">
+                <CardHeader>
+                  <div className="flex justify-between items-start mb-2">
+                    <Badge variant="outline">{report.sector}</Badge>
+                    <div className="text-right">
+                      <div className="text-sm font-semibold text-gray-900">{formatCurrency(report.revenue)}</div>
+                      <div className={`text-sm ${report.revenue_growth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {report.revenue_growth >= 0 ? '+' : ''}{report.revenue_growth}%
+                      </div>
+                    </div>
+                  </div>
+                  <CardTitle className="text-lg">{report.title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription className="text-gray-600 mb-4">
+                    {report.executive_summary}
+                  </CardDescription>
+                  <Button variant="outline" className="w-full" onClick={() => navigate('/reports')}>
+                    <BookOpen className="h-4 w-4 mr-2" />
+                    View Report
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+        
+        <div className="text-center mt-12">
+          <Button size="lg" onClick={() => navigate('/reports')}>
+            Browse All Reports
+          </Button>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// AI Assistant Section Component
+function AIAssistantSection() {
+  const [question, setQuestion] = useState('')
+  const [response, setResponse] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+
+  const handleAskQuestion = async () => {
+    if (!question.trim()) return
+    
+    setIsLoading(true)
+    
+    try {
+      const response = await fetch('http://localhost:5000/api/ai/ask', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ question }),
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setResponse(data.answer)
+      } else {
+        // Fallback response if backend is not available
+        setResponse(`Based on current market data, ${question.toLowerCase()} shows strong g
+(Content truncated due to size limit. Use page ranges or line ranges to read remaining content)
